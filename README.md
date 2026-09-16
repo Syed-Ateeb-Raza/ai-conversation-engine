@@ -1,140 +1,34 @@
-# My FastAPI Learning Project
+# AI Conversation Engine
 
-so i'm learning FastAPI and this is my practice project. building a REST API with PostgreSQL to understand how all the pieces fit together. will keep updating this as i learn more stuff.
+FastAPI microservices that power AI-driven forum/community engagement: generating natural-sounding responses and discussion topics across multiple LLM providers, building multi-model consensus replies, and deciding when a bot should reply or stop replying.
 
----
+## Services
 
-## what i've built so far
+| Service | Port | Endpoint | Purpose |
+|---|---|---|---|
+| `generate_response_api.py` | 5001 | `POST /generate-response` | Generates a single conversational reply from a chosen LLM, with optional simplification and human-like typo injection. |
+| `generate_consensus_responses.py` | 5004 | `POST /generate-consensus-response` | Queries several LLMs for the same prompt and distills one consensus reply containing only the points every model agreed on. |
+| `generate_topic_api.py` | 5000 | `POST /generate-topic` | Generates SEO-friendly discussion topics from a keyword, or rewrites a question into 3 natural variations. |
+| `realtime_topic_gen_api.py` | 5003 | `GET /search` | Pulls live Google search snippets (via Serper) and turns them into discussion-ready topics. |
+| `post_worth_checker_api.py` | 5005 | `POST /check-worth` | Classifies whether a comment is worth an automated reply (`WORTHY` / `NOT_WORTHY`). |
+| `conversation_continuation_evaluator_api.py` | 5002 | `POST /generate-continuation-response` | Decides whether a conversation thread should continue or end. |
 
-- connected FastAPI to a PostgreSQL database using SQLAlchemy
-- created a User model (basically a table in the DB)
-- full CRUD for users (create, read, update, delete)
-- passwords are hashed using bcrypt (learned you should NEVER store plain text passwords)
-- a basic products router to practice query parameters
-- split routes into separate files using APIRouter (much cleaner than dumping everything in main.py)
+All services share model selection, LLM-output cleanup, CORS, and bearer-token auth logic from `common.py`.
 
----
+## Supported models
 
-## project files and what they do
+`llama` (Groq), `qwen` (Groq), `deepseek`, `open-ai`, `claude`, `gemini`.
 
-```
-├── main.py        → the starting point, registers all the routers
-├── database.py    → sets up the connection to PostgreSQL
-├── models.py      → defines the actual DB tables using SQLAlchemy
-├── schemas.py     → Pydantic models for validating data coming in and going out
-├── oauth2.py      → going to add JWT auth here (not done yet)
-└── routers/
-    ├── users.py   → all user routes (signup, login, get, update, delete)
-    └── products.py → practicing query params here, no DB yet
-```
-
----
-
-## how to run this locally
-
-**step 1 - create a virtual environment**
+## Setup
 
 ```bash
-python -m venv venv
-venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env   # fill in your API keys and STATIC_TOKEN
+python generate_response_api.py   # run any service the same way
 ```
 
-**step 2 - install the packages**
+Every endpoint requires an `Authorization: Bearer <STATIC_TOKEN>` header.
 
-```bash
-pip install fastapi uvicorn sqlalchemy psycopg2-binary passlib[bcrypt] pydantic[email]
-```
+## GitHub repo description
 
-**step 3 - create the database in PostgreSQL**
-
-```sql
-CREATE DATABASE fastapi_db;
-```
-
-**step 4 - update the db url in database.py**
-
-```python
-DATABASE_URL = "postgresql://postgres:YOUR_PASSWORD@localhost/fastapi_db"
-```
-
-just replace YOUR_PASSWORD with your actual postgres password
-
-**step 5 - start the server**
-
-```bash
-uvicorn main:app --reload
-```
-
-the `--reload` flag is super useful, it restarts the server automatically every time you save a file
-
----
-
-## testing the API
-
-FastAPI auto-generates interactive docs which is honestly one of the coolest things about it
-
-- Swagger UI → http://127.0.0.1:8000/docs (i use this one, you can test everything from the browser)
-- ReDoc → http://127.0.0.1:8000/redoc
-
----
-
-## endpoints
-
-### users
-
-| method | endpoint | what it does |
-|---|---|---|
-| POST | `/users/` | create a new user |
-| GET | `/users/` | get all users |
-| GET | `/users/{id}` | get one user by id |
-| PUT | `/users/{id}` | update a user |
-| DELETE | `/users/{id}` | delete a user |
-| POST | `/users/login` | login with email + password |
-
-### products (still basic, no db connected)
-
-| method | endpoint | what it does |
-|---|---|---|
-| GET | `/products/?category=electronics` | get products, can also pass `limit` and `search` |
-| POST | `/products/` | create a product |
-
----
-
-## things i learned while building this
-
-**why are there two different User schemas?**
-
-`UserCreate` has the password field (for when someone signs up), but `UserResponse` doesn't (you never want to send the password back). took me a bit to understand why you need separate schemas but it makes sense now.
-
-**what is `Depends(get_db)` doing?**
-
-this is dependency injection in FastAPI. instead of manually opening and closing a db session in every route, you just write `db: Session = Depends(get_db)` and FastAPI handles it automatically. pretty neat.
-
-**what does `response_model` do?**
-
-it controls what gets sent back in the response. even if the db object has a password field, FastAPI will strip it out if it's not in the response_model schema. this is how the password never leaks out.
-
-**how does APIRouter work?**
-
-instead of writing all routes in main.py, you create separate router files. each router has a prefix like `/users` so you don't have to repeat it on every route. then in main.py you just do `app.include_router(users.router)` to plug it in.
-
-**password hashing**
-
-using passlib with bcrypt. when a user signs up the password gets hashed before saving to db. on login, `verify_password()` checks if the plain text matches the hash. never storing raw passwords.
-
----
-
-## stuff i still need to do
-
-- [ ] finish the JWT auth in oauth2.py
-- [ ] protect routes so only logged in users can access them
-- [ ] add a Product model and connect it to the database
-- [ ] maybe add a relationship between users and products
-
----
-
-## resources i've been using
-
-- https://fastapi.tiangolo.com/ (the official docs are actually really good)
-- https://docs.sqlalchemy.org/
-- https://docs.pydantic.dev/
+> FastAPI microservices for AI-powered forum engagement — multi-LLM response and topic generation, consensus replies, and reply-worthiness/continuation classifiers.
